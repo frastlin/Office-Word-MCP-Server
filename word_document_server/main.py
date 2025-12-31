@@ -187,7 +187,7 @@ def register_tools():
             title="Insert List Near Text",
         ),
     )
-    def insert_numbered_list_near_text(filename: str, target_text: str = None, list_items: list = None, position: str = 'after', target_paragraph_index: int = None, bullet_type: str = 'bullet'):
+    def insert_numbered_list_near_text(filename: str, target_text: str = None, list_items: list[str] = None, position: str = 'after', target_paragraph_index: int = None, bullet_type: str = 'bullet'):
         """Insert a bulleted or numbered list before or after the target paragraph. Specify by text or paragraph index. Args: filename (str), target_text (str, optional), list_items (list of str), position ('before' or 'after'), target_paragraph_index (int, optional), bullet_type ('bullet' for bullets or 'number' for numbered lists, default: 'bullet')."""
         return content_tools.insert_numbered_list_near_text_tool(filename, target_text, list_items, position, target_paragraph_index, bullet_type)
     # Content tools (paragraphs, headings, tables, etc.)
@@ -249,7 +249,7 @@ def register_tools():
             title="Add Table",
         ),
     )
-    def add_table(filename: str, rows: int, cols: int, data: list = None):
+    def add_table(filename: str, rows: int, cols: int, data: list[list[str]] = None):
         """Add a table to a Word document."""
         return content_tools.add_table(filename, rows, cols, data)
     
@@ -317,7 +317,7 @@ def register_tools():
         ),
     )
     def format_table(filename: str, table_index: int, has_header_row: bool = None,
-                    border_style: str = None, shading: list = None):
+                    border_style: str = None, shading: list[str] = None):
         """Format a table with borders, shading, and structure."""
         return format_tools.format_table(filename, table_index, has_header_row, border_style, shading)
     
@@ -582,7 +582,7 @@ def register_tools():
             title="Replace Block Below Header",
         ),
     )
-    def replace_paragraph_block_below_header(filename: str, header_text: str, new_paragraphs: list, detect_block_end_fn=None):
+    def replace_paragraph_block_below_header(filename: str, header_text: str, new_paragraphs: list[str], detect_block_end_fn: str = None):
         """Reemplaza el bloque de párrafos debajo de un encabezado, evitando modificar TOC."""
         return replace_paragraph_block_below_header_tool(filename, header_text, new_paragraphs, detect_block_end_fn)
 
@@ -591,7 +591,7 @@ def register_tools():
             title="Replace Block Between Anchors",
         ),
     )
-    def replace_block_between_manual_anchors(filename: str, start_anchor_text: str, new_paragraphs: list, end_anchor_text: str = None, match_fn=None, new_paragraph_style: str = None):
+    def replace_block_between_manual_anchors(filename: str, start_anchor_text: str, new_paragraphs: list[str], end_anchor_text: str = None, match_fn: str = None, new_paragraph_style: str = None):
         """Replace all content between start_anchor_text and end_anchor_text (or next logical header if not provided)."""
         return replace_block_between_manual_anchors_tool(filename, start_anchor_text, new_paragraphs, end_anchor_text, match_fn, new_paragraph_style)
 
@@ -641,7 +641,7 @@ def register_tools():
             title="Set Column Widths",
         ),
     )
-    def set_table_column_widths(filename: str, table_index: int, widths: list,
+    def set_table_column_widths(filename: str, table_index: int, widths: list[float],
                                width_type: str = "points"):
         """Set the widths of multiple table columns."""
         return format_tools.set_table_column_widths(filename, table_index, widths, width_type)
