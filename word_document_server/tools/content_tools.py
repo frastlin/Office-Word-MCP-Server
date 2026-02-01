@@ -10,7 +10,7 @@ from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 
 from word_document_server.utils.file_utils import check_file_writeable, ensure_docx_extension
-from word_document_server.utils.document_utils import find_and_replace_text, insert_header_near_text, insert_numbered_list_near_text, insert_line_or_paragraph_near_text, replace_paragraph_block_below_header, replace_block_between_manual_anchors, replace_paragraph_text
+from word_document_server.utils.document_utils import find_and_replace_text, insert_header_near_text, insert_numbered_list_near_text, insert_line_or_paragraph_near_text, replace_paragraph_block_below_header, replace_block_between_manual_anchors, replace_paragraph_text, replace_paragraph_range
 from word_document_server.core.styles import ensure_heading_style, ensure_table_style
 
 
@@ -489,3 +489,14 @@ async def replace_paragraph_text_tool(filename: str, paragraph_index: int, new_t
     if not is_writeable:
         return f"Cannot modify document: {error_message}."
     return replace_paragraph_text(filename, paragraph_index, new_text, preserve_style)
+
+async def replace_paragraph_range_tool(filename: str, start_index: int, end_index: int,
+                                        new_paragraphs: list, style: str = None) -> str:
+    """Replace a range of paragraphs in a single operation."""
+    filename = ensure_docx_extension(filename)
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}."
+    return replace_paragraph_range(filename, start_index, end_index, new_paragraphs, style)
