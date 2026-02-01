@@ -459,16 +459,26 @@ def delete_block_under_header(doc, header_text):
     Remove all elements (paragraphs, tables, etc.) after the header (by text) and before the next heading/TOC (by style).
     Returns: (header_element, elements_removed)
     """
-    # Find the header paragraph by text (like delete_paragraph finds by index)
+    # Find the header paragraph by text — Pass 1: exact normalized match
     header_para = None
     header_idx = None
-    
+    normalized_header = _normalize_text(header_text).lower()
+
     for i, para in enumerate(doc.paragraphs):
-        if para.text.strip().lower() == header_text.strip().lower():
+        if _normalize_text(para.text).lower() == normalized_header:
             header_para = para
             header_idx = i
             break
-    
+
+    # Pass 2: contains match, prefer heading-styled paragraphs
+    if header_para is None:
+        for i, para in enumerate(doc.paragraphs):
+            if is_heading_paragraph(para) and normalized_header in _normalize_text(para.text).lower():
+                logger.info(f"Header matched via contains: '{para.text}' contains '{header_text}'")
+                header_para = para
+                header_idx = i
+                break
+
     if header_para is None:
         return None, 0
     
@@ -513,17 +523,30 @@ def replace_paragraph_block_below_header(
     
     doc = Document(doc_path)
     
-    # Find the header paragraph first
+    # Find the header paragraph first — Pass 1: exact normalized match
     header_para = None
     header_idx = None
+    normalized_header = _normalize_text(header_text).lower()
+
     for i, para in enumerate(doc.paragraphs):
-        para_text = para.text.strip().lower()
-        is_toc = is_toc_paragraph(para)
-        if para_text == header_text.strip().lower() and not is_toc:
+        if is_toc_paragraph(para):
+            continue
+        if _normalize_text(para.text).lower() == normalized_header:
             header_para = para
             header_idx = i
             break
-    
+
+    # Pass 2: contains match, prefer heading-styled paragraphs
+    if header_para is None:
+        for i, para in enumerate(doc.paragraphs):
+            if is_toc_paragraph(para):
+                continue
+            if is_heading_paragraph(para) and normalized_header in _normalize_text(para.text).lower():
+                logger.info(f"Header matched via contains: '{para.text}' contains '{header_text}'")
+                header_para = para
+                header_idx = i
+                break
+
     if header_para is None:
         return f"Header '{header_text}' not found in document."
     
