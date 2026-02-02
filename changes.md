@@ -123,3 +123,12 @@ Eliminates the multi-call workaround documented in Issue 12.
 Added `include_paragraph_text` boolean parameter (default False) to `find_text_in_document`.
 When True, each occurrence returns the full paragraph text and style name instead of a
 truncated 100-character context. Backward compatible — default behavior unchanged.
+
+### 11. `find_texts_in_document` tool — batch text search
+**Branch:** `feat/batch-find-texts`
+**Files:** `extended_document_utils.py`, `extended_document_tools.py`, `main.py`
+**Issue resolved:** 6
+
+New MCP tool that searches for multiple text strings in a single document load. Returns a dict
+keyed by search string, each with occurrences and total_count. Supports match_case and
+include_paragraph_text options. Replaces the pattern of making many individual find_text calls.

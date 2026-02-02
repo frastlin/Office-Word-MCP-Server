@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any, Union, Tuple
 from docx import Document
 
 from word_document_server.utils.file_utils import check_file_writeable, ensure_docx_extension
-from word_document_server.utils.extended_document_utils import get_paragraph_text, find_text, get_paragraph_range, get_section_paragraphs
+from word_document_server.utils.extended_document_utils import get_paragraph_text, find_text, find_texts, get_paragraph_range, get_section_paragraphs
 
 
 async def get_paragraph_text_from_document(filename: str, paragraph_index: int) -> str:
@@ -75,6 +75,22 @@ async def find_text_in_document(filename: str, text_to_find: str, match_case: bo
         return json.dumps(result, indent=2)
     except Exception as e:
         return f"Failed to search for text: {str(e)}"
+
+
+async def find_texts_in_document_tool(filename: str, texts_to_find: list,
+                                       match_case: bool = True,
+                                       include_paragraph_text: bool = False) -> str:
+    """Find occurrences of multiple text strings in a document."""
+    filename = ensure_docx_extension(filename)
+
+    if not os.path.exists(filename):
+        return json.dumps({"error": f"Document {filename} does not exist"})
+
+    try:
+        result = find_texts(filename, texts_to_find, match_case, include_paragraph_text)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"Failed to search for texts: {str(e)}"})
 
 
 async def get_section_paragraphs_from_document(filename: str, heading_text: str, include_heading: bool = True) -> str:

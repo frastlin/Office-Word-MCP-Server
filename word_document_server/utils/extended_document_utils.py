@@ -232,6 +232,75 @@ def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_w
         return {"error": f"Failed to search for text: {str(e)}"}
 
 
+def find_texts(doc_path: str, texts_to_find: List[str], match_case: bool = True,
+               include_paragraph_text: bool = False) -> Dict[str, Any]:
+    """Find multiple text strings in a document in a single pass.
+
+    Loads the document once and checks each paragraph against all search strings.
+
+    Args:
+        doc_path: Path to the Word document
+        texts_to_find: List of strings to search for
+        match_case: Case-sensitive matching (default True)
+        include_paragraph_text: Include full paragraph text in results (default False)
+
+    Returns:
+        Dict keyed by search string. Each value has "occurrences" list and "total_count",
+        matching the shape of find_text() results.
+        Or dict with "error" key on failure.
+    """
+    import os
+    if not os.path.exists(doc_path):
+        return {"error": f"Document {doc_path} does not exist"}
+
+    if not texts_to_find:
+        return {}
+
+    try:
+        doc = Document(doc_path)
+
+        # Initialize results for each unique search string
+        unique_texts = list(dict.fromkeys(texts_to_find))  # preserve order, dedupe
+        results = {}
+        for text in unique_texts:
+            results[text] = {
+                "occurrences": [],
+                "total_count": 0
+            }
+
+        # Single pass through all paragraphs
+        for i, para in enumerate(doc.paragraphs):
+            para_text = para.text
+
+            for search_text in unique_texts:
+                compare_para = para_text if match_case else para_text.lower()
+                compare_search = search_text if match_case else search_text.lower()
+
+                start_pos = 0
+                while True:
+                    pos = compare_para.find(compare_search, start_pos)
+                    if pos == -1:
+                        break
+
+                    occurrence = {
+                        "paragraph_index": i,
+                        "position": pos,
+                    }
+                    if include_paragraph_text:
+                        occurrence["text"] = para.text
+                        occurrence["style"] = para.style.name if para.style else "Normal"
+                    else:
+                        occurrence["context"] = para.text[:100] + ("..." if len(para.text) > 100 else "")
+
+                    results[search_text]["occurrences"].append(occurrence)
+                    results[search_text]["total_count"] += 1
+                    start_pos = pos + len(compare_search)
+
+        return results
+    except Exception as e:
+        return {"error": f"Failed to search for texts: {str(e)}"}
+
+
 def get_section_paragraphs(doc_path: str, heading_text: str, include_heading: bool = True) -> Dict[str, Any]:
     """Get all paragraphs under a heading until the next same-or-higher-level heading.
 
