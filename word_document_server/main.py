@@ -605,6 +605,22 @@ def register_tools():
     
     @mcp.tool(
         annotations=ToolAnnotations(
+            title="Get Section Paragraphs",
+            readOnlyHint=True,
+        ),
+    )
+    def get_section_paragraphs(filename: str, heading_text: str, include_heading: bool = True):
+        """Get all paragraphs under a heading until the next same-or-higher-level heading.
+
+        Uses normalized text matching to find the heading. Returns heading metadata,
+        section boundaries, and all paragraphs in the section.
+
+        Eliminates the need for multiple get_paragraph_text calls to find section boundaries.
+        """
+        return extended_document_tools.get_section_paragraphs_from_document(filename, heading_text, include_heading)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
             title="Convert to PDF",
             destructiveHint=True,
         ),

@@ -88,6 +88,16 @@ All new functionality includes pytest-based tests under `tests/`:
 
 New MCP tool that deletes a contiguous range of paragraphs (by start/end index, inclusive) in a single operation. Removes XML elements in reverse order to preserve indices internally. Tool docstring includes guidance on working backward when making multiple range operations, eliminating the workarounds documented in Issues 10 and 11.
 
+### 9. `get_section_paragraphs` tool — section content extraction
+**Branch:** `feat/get-section-paragraphs`
+**Files:** `extended_document_utils.py`, `extended_document_tools.py`, `main.py`
+**Issues resolved:** 3, 12
+
+New MCP tool that returns all paragraphs under a heading (up to the next same-or-higher-level
+heading) in a single call. Uses normalized text matching with substring fallback. Returns
+heading metadata (index, text, style, level), section boundaries, and paragraph list.
+Eliminates the multi-call workaround documented in Issue 12.
+
 ---
 
 ## Other Changes
