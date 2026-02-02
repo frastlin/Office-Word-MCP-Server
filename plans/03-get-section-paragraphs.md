@@ -1,5 +1,7 @@
 # Plan 03: `get_section_paragraphs` (Issues 3 + 12)
 
+**Status: COMPLETED** — Merged to main. See changes.md entry #9.
+
 **Branch:** `feat/get-section-paragraphs`
 **Issues:** 3 (feature), 12 (workaround — finding section boundaries)
 

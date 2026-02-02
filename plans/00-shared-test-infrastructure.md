@@ -1,5 +1,7 @@
 # Plan 0: Shared Test Infrastructure
 
+**Status: COMPLETED** — Merged to main.
+
 **Prerequisite for all other plans. Each branch creates this as its first step.**
 
 ## Files to create

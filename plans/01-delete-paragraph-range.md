@@ -1,5 +1,7 @@
 # Plan 01: `delete_paragraph_range` (Issues 1 + 10 + 11)
 
+**Status: COMPLETED** — Merged to main. See changes.md entry #7.
+
 **Branch:** `feat/delete-paragraph-range`
 **Issues:** 1 (feature), 10 (workaround — working backward), 11 (workaround — bottom-up deletion)
 

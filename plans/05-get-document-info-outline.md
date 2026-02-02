@@ -1,5 +1,7 @@
 # Plan 05: `get_document_info` — include outline (Issue 5)
 
+**Status: COMPLETED** — Merged to main. See changes.md entry #11.
+
 **Branch:** `feat/get-document-info-include-outline`
 **Issue:** 5
 

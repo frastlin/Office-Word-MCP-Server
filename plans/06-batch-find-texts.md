@@ -1,5 +1,7 @@
 # Plan 06: `find_texts_in_document` — batch text search (Issue 6)
 
+**Status: COMPLETED** — Merged to main. See changes.md entry #12.
+
 **Branch:** `feat/batch-find-texts`
 **Issue:** 6
 

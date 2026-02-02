@@ -1,5 +1,7 @@
 # Plan 02: `get_paragraph_range` (Issue 2)
 
+**Status: COMPLETED** — Merged to main. See changes.md entry #8.
+
 **Branch:** `feat/get-paragraph-range`
 **Issue:** 2
 

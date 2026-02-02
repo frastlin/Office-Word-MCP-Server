@@ -1,5 +1,7 @@
 # Plan 04: `find_text_in_document` — include full paragraph text (Issue 4)
 
+**Status: COMPLETED** — Merged to main. See changes.md entry #10.
+
 **Branch:** `feat/find-text-include-full-paragraph`
 **Issue:** 4
 
