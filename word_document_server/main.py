@@ -597,10 +597,14 @@ def register_tools():
         ),
     )
     def find_text_in_document(filename: str, text_to_find: str, match_case: bool = True,
-                             whole_word: bool = False):
-        """Find occurrences of specific text in a Word document."""
+                             whole_word: bool = False, include_paragraph_text: bool = False):
+        """Find occurrences of specific text in a Word document.
+
+        When include_paragraph_text is True, each occurrence returns the full paragraph text
+        and its style instead of a truncated 100-character context preview.
+        """
         return extended_document_tools.find_text_in_document(
-            filename, text_to_find, match_case, whole_word
+            filename, text_to_find, match_case, whole_word, include_paragraph_text
         )
     
     @mcp.tool(

@@ -105,3 +105,12 @@ Eliminates the multi-call workaround documented in Issue 12.
 - Added `pytest` as a dev dependency in `pyproject.toml`
 - Updated `uv.lock` with new dependency resolution
 - Created implementation plan documents under `plans/` (later cleaned up from the branch)
+
+### 10. `find_text_in_document` — include full paragraph text option
+**Branch:** `feat/find-text-include-full-paragraph`
+**Files:** `extended_document_utils.py`, `extended_document_tools.py`, `main.py`
+**Issue resolved:** 4
+
+Added `include_paragraph_text` boolean parameter (default False) to `find_text_in_document`.
+When True, each occurrence returns the full paragraph text and style name instead of a
+truncated 100-character context. Backward compatible — default behavior unchanged.
