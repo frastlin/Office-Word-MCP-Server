@@ -123,3 +123,22 @@ Eliminates the multi-call workaround documented in Issue 12.
 Added `include_paragraph_text` boolean parameter (default False) to `find_text_in_document`.
 When True, each occurrence returns the full paragraph text and style name instead of a
 truncated 100-character context. Backward compatible — default behavior unchanged.
+
+### 11. `get_document_info` — include document outline
+**Branch:** `feat/get-document-info-include-outline`
+**Files:** `document_utils.py`, `document_tools.py`, `main.py`
+**Issue resolved:** 5
+
+Added `include_outline` boolean parameter (default False) to `get_document_info`. When True,
+the response includes a `headings` array with each heading's paragraph index, text, style name,
+and numeric level. Backward compatible — default behavior unchanged.
+
+### 12. `find_texts_in_document` — batch multi-string search
+**Branch:** `feat/get-document-info-include-outline`
+**Files:** `extended_document_utils.py`, `extended_document_tools.py`, `main.py`
+**Issue resolved:** 6
+
+New MCP tool that searches for multiple text strings in a single document load. Iterates
+paragraphs once and checks each against all search terms, returning a dict keyed by search
+string with `occurrences` and `total_count`. Supports `match_case` and `include_paragraph_text`
+options. Deduplicates search terms automatically.

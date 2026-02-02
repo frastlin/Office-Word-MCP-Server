@@ -26,17 +26,17 @@ def _normalize_text(s: str) -> str:
     return s.strip()
 
 
-def get_document_properties(doc_path: str) -> Dict[str, Any]:
+def get_document_properties(doc_path: str, include_outline: bool = False) -> Dict[str, Any]:
     """Get properties of a Word document."""
     import os
     if not os.path.exists(doc_path):
         return {"error": f"Document {doc_path} does not exist"}
-    
+
     try:
         doc = Document(doc_path)
         core_props = doc.core_properties
-        
-        return {
+
+        result = {
             "title": core_props.title or "",
             "author": core_props.author or "",
             "subject": core_props.subject or "",
@@ -50,6 +50,24 @@ def get_document_properties(doc_path: str) -> Dict[str, Any]:
             "paragraph_count": len(doc.paragraphs),
             "table_count": len(doc.tables)
         }
+
+        if include_outline:
+            headings = []
+            for i, para in enumerate(doc.paragraphs):
+                if para.style and para.style.name.startswith("Heading"):
+                    try:
+                        level = int(para.style.name.split(" ")[1])
+                    except (ValueError, IndexError):
+                        level = 0
+                    headings.append({
+                        "index": i,
+                        "text": para.text,
+                        "style": para.style.name,
+                        "level": level
+                    })
+            result["headings"] = headings
+
+        return result
     except Exception as e:
         return {"error": f"Failed to get document properties: {str(e)}"}
 

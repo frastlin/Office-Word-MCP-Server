@@ -118,9 +118,13 @@ def register_tools():
             readOnlyHint=True,
         ),
     )
-    def get_document_info(filename: str):
-        """Get information about a Word document."""
-        return document_tools.get_document_info(filename)
+    def get_document_info(filename: str, include_outline: bool = False):
+        """Get information about a Word document.
+
+        When include_outline is True, also returns a headings array with text,
+        style, level, and paragraph index for each heading in the document.
+        """
+        return document_tools.get_document_info(filename, include_outline)
     
     @mcp.tool(
         annotations=ToolAnnotations(
@@ -636,6 +640,25 @@ def register_tools():
         Eliminates the need for multiple get_paragraph_text calls to find section boundaries.
         """
         return extended_document_tools.get_section_paragraphs_from_document(filename, heading_text, include_heading)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Find Multiple Texts",
+            readOnlyHint=True,
+        ),
+    )
+    def find_texts_in_document(filename: str, texts_to_find: list[str], match_case: bool = True,
+                               include_paragraph_text: bool = False):
+        """Find occurrences of multiple text strings in a document in one call.
+
+        More efficient than multiple find_text_in_document calls -- loads the document once
+        and searches for all strings in a single pass.
+
+        Returns a dict keyed by search string, each containing occurrences and total_count.
+        """
+        return extended_document_tools.find_texts_in_document_tool(
+            filename, texts_to_find, match_case, include_paragraph_text
+        )
 
     @mcp.tool(
         annotations=ToolAnnotations(
