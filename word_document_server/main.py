@@ -274,6 +274,21 @@ def register_tools():
     
     @mcp.tool(
         annotations=ToolAnnotations(
+            title="Delete Paragraph Range",
+            destructiveHint=True,
+        ),
+    )
+    def delete_paragraph_range(filename: str, start_index: int, end_index: int):
+        """Delete a range of paragraphs (start to end index inclusive) from a document.
+
+        Tip: When performing multiple range deletions in the same document, process
+        higher indices first to prevent index shifting. This tool replaces the pattern
+        of calling delete_paragraph in a bottom-up loop.
+        """
+        return content_tools.delete_paragraph_range_tool(filename, start_index, end_index)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
             title="Replace Paragraph Text",
             destructiveHint=True,
         ),

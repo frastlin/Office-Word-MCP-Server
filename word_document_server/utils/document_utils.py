@@ -585,6 +585,47 @@ def replace_paragraph_range(doc_path: str, start_index: int, end_index: int,
         return f"Failed to replace paragraph range: {str(e)}"
 
 
+def delete_paragraph_range(doc_path: str, start_index: int, end_index: int) -> str:
+    """Delete paragraphs from start_index to end_index inclusive.
+
+    Removes XML elements in reverse order to preserve internal indices.
+    When making multiple range deletions, process higher indices first.
+
+    Args:
+        doc_path: Path to the Word document
+        start_index: First paragraph index to delete (inclusive, 0-based)
+        end_index: Last paragraph index to delete (inclusive, 0-based)
+
+    Returns:
+        Success or error message string
+    """
+    import os
+    if not os.path.exists(doc_path):
+        return f"Error: Document {doc_path} does not exist"
+
+    try:
+        doc = Document(doc_path)
+        total = len(doc.paragraphs)
+
+        if start_index < 0:
+            return f"Error: start_index ({start_index}) must be >= 0"
+        if end_index >= total:
+            return f"Error: end_index ({end_index}) exceeds paragraph count ({total})"
+        if start_index > end_index:
+            return f"Error: start_index ({start_index}) > end_index ({end_index})"
+
+        # Delete in reverse order to preserve indices
+        for i in range(end_index, start_index - 1, -1):
+            p = doc.paragraphs[i]._p
+            p.getparent().remove(p)
+
+        doc.save(doc_path)
+        count = end_index - start_index + 1
+        return f"Successfully deleted {count} paragraph(s) (indices {start_index}-{end_index})."
+    except Exception as e:
+        return f"Error: Failed to delete paragraph range: {str(e)}"
+
+
 def is_toc_paragraph(para):
     """Devuelve True si el párrafo tiene un estilo de tabla de contenido (TOC)."""
     return para.style and para.style.name.upper().startswith("TOC")

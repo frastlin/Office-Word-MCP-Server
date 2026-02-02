@@ -81,6 +81,13 @@ All new functionality includes pytest-based tests under `tests/`:
 | `tests/test_insert_paragraph_formatting.py` | `copy_style_from_index` parameter |
 | `tests/test_batch_replace.py` | `replace_paragraph_range` tool |
 
+### 7. `delete_paragraph_range` tool — batch paragraph deletion
+**Branch:** `feat/delete-paragraph-range`
+**Files:** `document_utils.py`, `content_tools.py`, `main.py`
+**Issues resolved:** 1, 10, 11
+
+New MCP tool that deletes a contiguous range of paragraphs (by start/end index, inclusive) in a single operation. Removes XML elements in reverse order to preserve indices internally. Tool docstring includes guidance on working backward when making multiple range operations, eliminating the workarounds documented in Issues 10 and 11.
+
 ---
 
 ## Other Changes

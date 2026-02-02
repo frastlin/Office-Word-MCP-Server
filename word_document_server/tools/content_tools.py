@@ -10,7 +10,7 @@ from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 
 from word_document_server.utils.file_utils import check_file_writeable, ensure_docx_extension
-from word_document_server.utils.document_utils import find_and_replace_text, insert_header_near_text, insert_numbered_list_near_text, insert_line_or_paragraph_near_text, replace_paragraph_block_below_header, replace_block_between_manual_anchors, replace_paragraph_text, replace_paragraph_range
+from word_document_server.utils.document_utils import find_and_replace_text, insert_header_near_text, insert_numbered_list_near_text, insert_line_or_paragraph_near_text, replace_paragraph_block_below_header, replace_block_between_manual_anchors, replace_paragraph_text, replace_paragraph_range, delete_paragraph_range
 from word_document_server.core.styles import ensure_heading_style, ensure_table_style
 
 
@@ -426,6 +426,20 @@ async def delete_paragraph(filename: str, paragraph_index: int) -> str:
         return f"Paragraph at index {paragraph_index} deleted successfully."
     except Exception as e:
         return f"Failed to delete paragraph: {str(e)}"
+
+
+async def delete_paragraph_range_tool(filename: str, start_index: int, end_index: int) -> str:
+    """Delete a range of paragraphs from a document."""
+    filename = ensure_docx_extension(filename)
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}"
+
+    return delete_paragraph_range(filename, start_index, end_index)
 
 
 async def search_and_replace(filename: str, find_text: str, replace_text: str) -> str:
