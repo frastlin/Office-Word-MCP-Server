@@ -121,6 +121,11 @@ def register_tools():
     def get_document_info(filename: str, include_outline: bool = False):
         """Get information about a Word document.
 
+        Word count uses whitespace splitting on body paragraphs only.
+        Table text is counted separately in table_word_count.
+        This count may differ from Microsoft Word's built-in word count,
+        which can optionally include footnotes, textboxes, and headers/footers.
+
         When include_outline is True, also returns a headings array with text,
         style, level, and paragraph index for each heading in the document.
         """
@@ -297,9 +302,22 @@ def register_tools():
             destructiveHint=True,
         ),
     )
-    def replace_paragraph_text(filename: str, paragraph_index: int, new_text: str, preserve_style: bool = True):
-        """Replace the text of a specific paragraph by index, optionally preserving its style."""
-        return content_tools.replace_paragraph_text_tool(filename, paragraph_index, new_text, preserve_style)
+    def replace_paragraph_text(filename: str, paragraph_index: int, new_text: str,
+                              preserve_style: bool = True, parse_markdown: bool = False):
+        """Replace the text of a specific paragraph by index, optionally preserving its style.
+
+        When parse_markdown is True, supports inline formatting:
+        - *italic* for italic text
+        - **bold** for bold text
+        - ***bold italic*** for bold italic text
+
+        Note: preserve_style preserves paragraph-level style (e.g., Heading 2).
+        Character-level formatting from the original paragraph is not preserved.
+        Use parse_markdown=True to apply formatting to the replacement text.
+        """
+        return content_tools.replace_paragraph_text_tool(
+            filename, paragraph_index, new_text, preserve_style, parse_markdown
+        )
 
     @mcp.tool(
         annotations=ToolAnnotations(
@@ -308,9 +326,23 @@ def register_tools():
         ),
     )
     def replace_paragraph_range(filename: str, start_index: int, end_index: int,
-                                new_paragraphs: list[str], style: str = None):
-        """Replace a range of paragraphs (start to end index inclusive) with new paragraphs in a single operation."""
-        return content_tools.replace_paragraph_range_tool(filename, start_index, end_index, new_paragraphs, style)
+                                new_paragraphs: list[str], style: str = None,
+                                preserve_style: bool = False):
+        """Replace a range of paragraphs (start to end index inclusive) with new paragraphs.
+
+        Style behavior:
+        - Default: new paragraphs receive 'Normal' style
+        - style parameter: applies specified style to all new paragraphs
+        - preserve_style=True: copies style from the paragraph at start_index
+        - style parameter takes precedence over preserve_style
+
+        Note: Empty paragraphs used as spacing in the original document must be
+        explicitly included as "" entries in new_paragraphs to preserve spacing.
+        Passing new_paragraphs=[] effectively deletes the range.
+        """
+        return content_tools.replace_paragraph_range_tool(
+            filename, start_index, end_index, new_paragraphs, style, preserve_style
+        )
 
     @mcp.tool(
         annotations=ToolAnnotations(

@@ -494,7 +494,8 @@ async def replace_block_between_manual_anchors_tool(filename: str, start_anchor_
     """Replace all content between start_anchor_text and end_anchor_text (or next logical header if not provided)."""
     return replace_block_between_manual_anchors(filename, start_anchor_text, new_paragraphs, end_anchor_text, match_fn, new_paragraph_style)
 
-async def replace_paragraph_text_tool(filename: str, paragraph_index: int, new_text: str, preserve_style: bool = True) -> str:
+async def replace_paragraph_text_tool(filename: str, paragraph_index: int, new_text: str,
+                                      preserve_style: bool = True, parse_markdown: bool = False) -> str:
     """Replace text of a specific paragraph by index."""
     filename = ensure_docx_extension(filename)
     if not os.path.exists(filename):
@@ -502,10 +503,11 @@ async def replace_paragraph_text_tool(filename: str, paragraph_index: int, new_t
     is_writeable, error_message = check_file_writeable(filename)
     if not is_writeable:
         return f"Cannot modify document: {error_message}."
-    return replace_paragraph_text(filename, paragraph_index, new_text, preserve_style)
+    return replace_paragraph_text(filename, paragraph_index, new_text, preserve_style, parse_markdown)
 
 async def replace_paragraph_range_tool(filename: str, start_index: int, end_index: int,
-                                        new_paragraphs: list, style: str = None) -> str:
+                                        new_paragraphs: list, style: str = None,
+                                        preserve_style: bool = False) -> str:
     """Replace a range of paragraphs in a single operation."""
     filename = ensure_docx_extension(filename)
     if not os.path.exists(filename):
@@ -513,4 +515,4 @@ async def replace_paragraph_range_tool(filename: str, start_index: int, end_inde
     is_writeable, error_message = check_file_writeable(filename)
     if not is_writeable:
         return f"Cannot modify document: {error_message}."
-    return replace_paragraph_range(filename, start_index, end_index, new_paragraphs, style)
+    return replace_paragraph_range(filename, start_index, end_index, new_paragraphs, style, preserve_style)

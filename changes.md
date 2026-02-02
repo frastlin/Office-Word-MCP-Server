@@ -142,3 +142,34 @@ New MCP tool that searches for multiple text strings in a single document load. 
 paragraphs once and checks each against all search terms, returning a dict keyed by search
 string with `occurrences` and `total_count`. Supports `match_case` and `include_paragraph_text`
 options. Deduplicates search terms automatically.
+
+### 13. Word count method documentation and table word count
+**Branch:** `fix/word-count-method`
+**Files:** `document_utils.py`, `main.py`
+**Issue resolved:** 7
+
+Added `word_count_method`, `word_count_note`, and `table_word_count` fields to the
+`get_document_info` response. The note explains that word_count uses whitespace splitting
+on body paragraphs only and may differ from Microsoft Word's built-in count. Table text
+is now counted separately in `table_word_count`.
+
+### 14. `replace_paragraph_range` — preserve_style and documentation
+**Branch:** `fix/replace-paragraph-range-style-docs`
+**Files:** `document_utils.py`, `content_tools.py`, `main.py`
+**Issues resolved:** 8, 13
+
+Added `preserve_style` boolean parameter (default False) to `replace_paragraph_range`.
+When True, copies the paragraph style from the first replaced paragraph to all new paragraphs.
+Explicit `style` parameter overrides `preserve_style`. Updated tool docstring to document:
+default style behavior (Normal), empty spacer paragraph requirement ("" entries), and that
+passing an empty `new_paragraphs` list effectively deletes the range.
+
+### 15. `replace_paragraph_text` — markdown formatting support
+**Branch:** `feat/replace-paragraph-formatted-text`
+**Files:** `document_utils.py`, `content_tools.py`, `main.py`
+**Issue resolved:** 9
+
+Added `parse_markdown` boolean parameter (default False) to `replace_paragraph_text`.
+When True, interprets `*italic*`, `**bold**`, and `***bold italic***` in the replacement
+text and creates properly formatted Word runs. Added `_parse_markdown_runs()` helper
+that splits text into run specs using regex. Backward compatible — default behavior unchanged.

@@ -19,6 +19,78 @@ _W_P = qn('w:p')
 _W_TBL = qn('w:tbl')
 
 
+def _parse_markdown_runs(text: str) -> list:
+    """Parse markdown-style inline formatting into a list of run specs.
+
+    Supports:
+    - ***bold italic*** (must be checked first - greedy)
+    - **bold**
+    - *italic*
+
+    Returns:
+        List of dicts: [{"text": "...", "bold": bool, "italic": bool}, ...]
+    """
+    if not text:
+        return [{"text": "", "bold": False, "italic": False}]
+
+    # Pattern matches ***bold italic***, **bold**, or *italic* (greedy, non-nested)
+    # Order matters: check *** before ** before *
+    pattern = r'(\*{3}(.+?)\*{3}|\*{2}(.+?)\*{2}|\*(.+?)\*)'
+
+    runs = []
+    last_end = 0
+
+    for match in re.finditer(pattern, text):
+        start = match.start()
+
+        # Add plain text before this match
+        if start > last_end:
+            runs.append({
+                "text": text[last_end:start],
+                "bold": False,
+                "italic": False
+            })
+
+        # Determine which group matched
+        if match.group(2) is not None:
+            # *** bold italic ***
+            runs.append({
+                "text": match.group(2),
+                "bold": True,
+                "italic": True
+            })
+        elif match.group(3) is not None:
+            # ** bold **
+            runs.append({
+                "text": match.group(3),
+                "bold": True,
+                "italic": False
+            })
+        elif match.group(4) is not None:
+            # * italic *
+            runs.append({
+                "text": match.group(4),
+                "bold": False,
+                "italic": True
+            })
+
+        last_end = match.end()
+
+    # Add remaining text after last match
+    if last_end < len(text):
+        runs.append({
+            "text": text[last_end:],
+            "bold": False,
+            "italic": False
+        })
+
+    # If no matches found, return the whole text as plain
+    if not runs:
+        runs.append({"text": text, "bold": False, "italic": False})
+
+    return runs
+
+
 def _normalize_text(s: str) -> str:
     """Normalize text for reliable matching: NFKC normalize, collapse whitespace, strip."""
     s = unicodedata.normalize("NFKC", s)
@@ -47,6 +119,19 @@ def get_document_properties(doc_path: str, include_outline: bool = False) -> Dic
             "revision": core_props.revision or 0,
             "page_count": len(doc.sections),
             "word_count": sum(len(paragraph.text.split()) for paragraph in doc.paragraphs),
+            "word_count_method": "body_paragraphs_whitespace_split",
+            "word_count_note": (
+                "Counts words in body paragraphs only using whitespace splitting. "
+                "Does not include text in tables, headers, footers, footnotes, "
+                "or textboxes. May differ from Microsoft Word's built-in word count."
+            ),
+            "table_word_count": sum(
+                len(para.text.split())
+                for table in doc.tables
+                for row in table.rows
+                for cell in row.cells
+                for para in cell.paragraphs
+            ),
             "paragraph_count": len(doc.paragraphs),
             "table_count": len(doc.tables)
         }
@@ -511,8 +596,17 @@ def insert_numbered_list_near_text(doc_path: str, target_text: str = None, list_
         return f"Failed to insert numbered list: {str(e)}"
 
 
-def replace_paragraph_text(doc_path: str, paragraph_index: int, new_text: str, preserve_style: bool = True) -> str:
-    """Replace the text of a paragraph at a given index, optionally preserving style."""
+def replace_paragraph_text(doc_path: str, paragraph_index: int, new_text: str,
+                           preserve_style: bool = True, parse_markdown: bool = False) -> str:
+    """Replace the text of a paragraph at a given index, optionally preserving style.
+
+    Args:
+        doc_path: Path to the Word document
+        paragraph_index: Index of the paragraph to replace
+        new_text: New text content
+        preserve_style: Preserve paragraph-level style (default True)
+        parse_markdown: Parse *italic*, **bold**, ***bold italic*** (default False)
+    """
     import os
     if not os.path.exists(doc_path):
         return f"Document {doc_path} does not exist"
@@ -525,14 +619,24 @@ def replace_paragraph_text(doc_path: str, paragraph_index: int, new_text: str, p
         para = doc.paragraphs[paragraph_index]
         old_style = para.style
 
-        # Clear all runs
-        for run in para.runs:
+        # Clear all existing runs by removing their XML elements
+        for run in list(para.runs):
             run.text = ""
+        for run in list(para.runs):
+            if hasattr(run, '_r') and run._r.getparent() is not None:
+                run._r.getparent().remove(run._r)
 
-        # Set text on first run (preserves its formatting) or add new run
-        if para.runs:
-            para.runs[0].text = new_text
+        if parse_markdown:
+            # Parse markdown and create formatted runs
+            run_specs = _parse_markdown_runs(new_text)
+            for spec in run_specs:
+                run = para.add_run(spec["text"])
+                if spec["bold"]:
+                    run.bold = True
+                if spec["italic"]:
+                    run.italic = True
         else:
+            # Original behavior: single unformatted run
             para.add_run(new_text)
 
         if preserve_style and old_style:
@@ -547,7 +651,8 @@ def replace_paragraph_text(doc_path: str, paragraph_index: int, new_text: str, p
 
 
 def replace_paragraph_range(doc_path: str, start_index: int, end_index: int,
-                            new_paragraphs: list, style: str = None) -> str:
+                            new_paragraphs: list, style: str = None,
+                            preserve_style: bool = False) -> str:
     """Replace paragraphs from start_index to end_index (inclusive) with new_paragraphs.
 
     Args:
@@ -555,7 +660,8 @@ def replace_paragraph_range(doc_path: str, start_index: int, end_index: int,
         start_index: First paragraph index to replace (inclusive)
         end_index: Last paragraph index to replace (inclusive)
         new_paragraphs: List of text strings for new paragraphs
-        style: Optional style name for new paragraphs (defaults to Normal)
+        style: Optional style name for new paragraphs (overrides preserve_style)
+        preserve_style: If True, copies style from the paragraph at start_index
     """
     import os
     if not os.path.exists(doc_path):
@@ -567,6 +673,14 @@ def replace_paragraph_range(doc_path: str, start_index: int, end_index: int,
 
         if start_index < 0 or end_index >= total or start_index > end_index:
             return f"Invalid range [{start_index}, {end_index}]. Document has {total} paragraphs (0-{total-1})."
+
+        # Determine style for new paragraphs
+        if style:
+            style_to_use = style
+        elif preserve_style:
+            style_to_use = doc.paragraphs[start_index].style.name if doc.paragraphs[start_index].style else "Normal"
+        else:
+            style_to_use = "Normal"
 
         # Get anchor element (paragraph before start_index)
         if start_index > 0:
@@ -580,7 +694,6 @@ def replace_paragraph_range(doc_path: str, start_index: int, end_index: int,
             p.getparent().remove(p)
 
         # Insert new paragraphs
-        style_to_use = style or "Normal"
         body = doc.element.body
 
         prev_element = anchor_element
@@ -895,38 +1008,3 @@ def replace_block_between_manual_anchors(
         anchor_para = new_para
     doc.save(doc_path)
     return f"Replaced content between '{start_anchor_text}' and '{end_anchor_text or 'next logical header'}' with {len(new_paragraphs)} paragraph(s), style: {style_to_use}, removed {len(to_remove)} elements."
-
-
-def replace_paragraph_text(doc_path: str, paragraph_index: int, new_text: str, preserve_style: bool = True) -> str:
-    """Replace the text of a paragraph at a given index, optionally preserving style."""
-    import os
-    if not os.path.exists(doc_path):
-        return f"Document {doc_path} does not exist"
-
-    try:
-        doc = Document(doc_path)
-        if paragraph_index < 0 or paragraph_index >= len(doc.paragraphs):
-            return f"Invalid paragraph index: {paragraph_index}. Document has {len(doc.paragraphs)} paragraphs."
-
-        para = doc.paragraphs[paragraph_index]
-        old_style = para.style
-
-        # Clear all runs
-        for run in para.runs:
-            run.text = ""
-
-        # Set text on first run (preserves its formatting) or add new run
-        if para.runs:
-            para.runs[0].text = new_text
-        else:
-            para.add_run(new_text)
-
-        if preserve_style and old_style:
-            para.style = old_style
-        elif not preserve_style:
-            para.style = doc.styles["Normal"]
-
-        doc.save(doc_path)
-        return f"Paragraph at index {paragraph_index} replaced successfully."
-    except Exception as e:
-        return f"Failed to replace paragraph: {str(e)}"
