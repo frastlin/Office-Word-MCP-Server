@@ -123,3 +123,12 @@ Eliminates the multi-call workaround documented in Issue 12.
 Added `include_paragraph_text` boolean parameter (default False) to `find_text_in_document`.
 When True, each occurrence returns the full paragraph text and style name instead of a
 truncated 100-character context. Backward compatible — default behavior unchanged.
+
+### 11. `get_document_info` — include outline option
+**Branch:** `feat/get-document-info-include-outline`
+**Files:** `document_utils.py`, `document_tools.py`, `main.py`
+**Issue resolved:** 5
+
+Added `include_outline` boolean parameter (default False) to `get_document_info`.
+When True, adds a `headings` array to the response containing each heading's text,
+style, level, and paragraph index. Backward compatible — default behavior unchanged.

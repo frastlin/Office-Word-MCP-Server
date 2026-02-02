@@ -118,9 +118,13 @@ def register_tools():
             readOnlyHint=True,
         ),
     )
-    def get_document_info(filename: str):
-        """Get information about a Word document."""
-        return document_tools.get_document_info(filename)
+    def get_document_info(filename: str, include_outline: bool = False):
+        """Get information about a Word document.
+
+        When include_outline is True, also returns a headings array with text,
+        style, level, and paragraph index for each heading in the document.
+        """
+        return document_tools.get_document_info(filename, include_outline)
     
     @mcp.tool(
         annotations=ToolAnnotations(

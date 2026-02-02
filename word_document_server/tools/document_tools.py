@@ -47,19 +47,21 @@ async def create_document(filename: str, title: Optional[str] = None, author: Op
         return f"Failed to create document: {str(e)}"
 
 
-async def get_document_info(filename: str) -> str:
+async def get_document_info(filename: str, include_outline: bool = False) -> str:
     """Get information about a Word document.
-    
+
     Args:
         filename: Path to the Word document
+        include_outline: If True, also returns a headings array with text,
+            style, level, and paragraph index for each heading in the document.
     """
     filename = ensure_docx_extension(filename)
-    
+
     if not os.path.exists(filename):
         return f"Document {filename} does not exist"
-    
+
     try:
-        properties = get_document_properties(filename)
+        properties = get_document_properties(filename, include_outline=include_outline)
         return json.dumps(properties, indent=2)
     except Exception as e:
         return f"Failed to get document info: {str(e)}"
