@@ -39,7 +39,7 @@ def get_paragraph_text(doc_path: str, paragraph_index: int) -> Dict[str, Any]:
         return {"error": f"Failed to get paragraph text: {str(e)}"}
 
 
-def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_word: bool = False) -> Dict[str, Any]:
+def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_word: bool = False, include_paragraph_text: bool = False) -> Dict[str, Any]:
     """
     Find all occurrences of specific text in a Word document.
     
@@ -87,16 +87,21 @@ def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_w
                     words = para_text.split()
                     found = False
                     for word_idx, word in enumerate(words):
-                        if (word == search_text or 
+                        if (word == search_text or
                             (not match_case and word.lower() == search_text.lower())):
-                            results["occurrences"].append({
+                            occurrence = {
                                 "paragraph_index": i,
                                 "position": word_idx,
-                                "context": para.text[:100] + ("..." if len(para.text) > 100 else "")
-                            })
+                            }
+                            if include_paragraph_text:
+                                occurrence["text"] = para.text
+                                occurrence["style"] = para.style.name if para.style else "Normal"
+                            else:
+                                occurrence["context"] = para.text[:100] + ("..." if len(para.text) > 100 else "")
+                            results["occurrences"].append(occurrence)
                             results["total_count"] += 1
                             found = True
-                    
+
                     # Break after checking all words
                     break
                 else:
@@ -104,15 +109,20 @@ def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_w
                     pos = para_text.find(search_text, start_pos)
                     if pos == -1:
                         break
-                    
-                    results["occurrences"].append({
+
+                    occurrence = {
                         "paragraph_index": i,
                         "position": pos,
-                        "context": para.text[:100] + ("..." if len(para.text) > 100 else "")
-                    })
+                    }
+                    if include_paragraph_text:
+                        occurrence["text"] = para.text
+                        occurrence["style"] = para.style.name if para.style else "Normal"
+                    else:
+                        occurrence["context"] = para.text[:100] + ("..." if len(para.text) > 100 else "")
+                    results["occurrences"].append(occurrence)
                     results["total_count"] += 1
                     start_pos = pos + len(search_text)
-        
+
         # Search in tables
         for table_idx, table in enumerate(doc.tables):
             for row_idx, row in enumerate(table.rows):
@@ -134,16 +144,21 @@ def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_w
                                 words = para_text.split()
                                 found = False
                                 for word_idx, word in enumerate(words):
-                                    if (word == search_text or 
+                                    if (word == search_text or
                                         (not match_case and word.lower() == search_text.lower())):
-                                        results["occurrences"].append({
+                                        occurrence = {
                                             "location": f"Table {table_idx}, Row {row_idx}, Column {col_idx}",
                                             "position": word_idx,
-                                            "context": para.text[:100] + ("..." if len(para.text) > 100 else "")
-                                        })
+                                        }
+                                        if include_paragraph_text:
+                                            occurrence["text"] = para.text
+                                            occurrence["style"] = para.style.name if para.style else "Normal"
+                                        else:
+                                            occurrence["context"] = para.text[:100] + ("..." if len(para.text) > 100 else "")
+                                        results["occurrences"].append(occurrence)
                                         results["total_count"] += 1
                                         found = True
-                                
+
                                 # Break after checking all words
                                 break
                             else:
@@ -151,12 +166,17 @@ def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_w
                                 pos = para_text.find(search_text, start_pos)
                                 if pos == -1:
                                     break
-                                
-                                results["occurrences"].append({
+
+                                occurrence = {
                                     "location": f"Table {table_idx}, Row {row_idx}, Column {col_idx}",
                                     "position": pos,
-                                    "context": para.text[:100] + ("..." if len(para.text) > 100 else "")
-                                })
+                                }
+                                if include_paragraph_text:
+                                    occurrence["text"] = para.text
+                                    occurrence["style"] = para.style.name if para.style else "Normal"
+                                else:
+                                    occurrence["context"] = para.text[:100] + ("..." if len(para.text) > 100 else "")
+                                results["occurrences"].append(occurrence)
                                 results["total_count"] += 1
                                 start_pos = pos + len(search_text)
         

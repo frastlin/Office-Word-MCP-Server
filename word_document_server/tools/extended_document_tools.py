@@ -38,7 +38,7 @@ async def get_paragraph_text_from_document(filename: str, paragraph_index: int) 
         return f"Failed to get paragraph text: {str(e)}"
 
 
-async def find_text_in_document(filename: str, text_to_find: str, match_case: bool = True, whole_word: bool = False) -> str:
+async def find_text_in_document(filename: str, text_to_find: str, match_case: bool = True, whole_word: bool = False, include_paragraph_text: bool = False) -> str:
     """Find occurrences of specific text in a Word document.
     
     Args:
@@ -57,7 +57,7 @@ async def find_text_in_document(filename: str, text_to_find: str, match_case: bo
     
     try:
         
-        result = find_text(filename, text_to_find, match_case, whole_word)
+        result = find_text(filename, text_to_find, match_case, whole_word, include_paragraph_text)
         return json.dumps(result, indent=2)
     except Exception as e:
         return f"Failed to search for text: {str(e)}"
