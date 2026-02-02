@@ -589,7 +589,21 @@ def register_tools():
     def get_paragraph_text_from_document(filename: str, paragraph_index: int):
         """Get text from a specific paragraph in a Word document."""
         return extended_document_tools.get_paragraph_text_from_document(filename, paragraph_index)
-    
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Get Paragraph Range",
+            readOnlyHint=True,
+        ),
+    )
+    def get_paragraph_range(filename: str, start_index: int, end_index: int):
+        """Get text from a range of paragraphs (start to end index inclusive).
+
+        Returns a list of paragraph objects, each with index, text, style, and is_heading.
+        More efficient than multiple get_paragraph_text_from_document calls.
+        """
+        return extended_document_tools.get_paragraph_range_from_document(filename, start_index, end_index)
+
     @mcp.tool(
         annotations=ToolAnnotations(
             title="Find Text",

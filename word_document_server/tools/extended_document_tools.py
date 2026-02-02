@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any, Union, Tuple
 from docx import Document
 
 from word_document_server.utils.file_utils import check_file_writeable, ensure_docx_extension
-from word_document_server.utils.extended_document_utils import get_paragraph_text, find_text, get_section_paragraphs
+from word_document_server.utils.extended_document_utils import get_paragraph_text, find_text, get_paragraph_range, get_section_paragraphs
 
 
 async def get_paragraph_text_from_document(filename: str, paragraph_index: int) -> str:
@@ -36,6 +36,20 @@ async def get_paragraph_text_from_document(filename: str, paragraph_index: int) 
         return json.dumps(result, indent=2)
     except Exception as e:
         return f"Failed to get paragraph text: {str(e)}"
+
+
+async def get_paragraph_range_from_document(filename: str, start_index: int, end_index: int) -> str:
+    """Get text from a range of paragraphs in a Word document."""
+    filename = ensure_docx_extension(filename)
+
+    if not os.path.exists(filename):
+        return json.dumps({"error": f"Document {filename} does not exist"})
+
+    try:
+        result = get_paragraph_range(filename, start_index, end_index)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": f"Failed to get paragraph range: {str(e)}"})
 
 
 async def find_text_in_document(filename: str, text_to_find: str, match_case: bool = True, whole_word: bool = False, include_paragraph_text: bool = False) -> str:

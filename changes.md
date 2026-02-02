@@ -88,6 +88,15 @@ All new functionality includes pytest-based tests under `tests/`:
 
 New MCP tool that deletes a contiguous range of paragraphs (by start/end index, inclusive) in a single operation. Removes XML elements in reverse order to preserve indices internally. Tool docstring includes guidance on working backward when making multiple range operations, eliminating the workarounds documented in Issues 10 and 11.
 
+### 8. `get_paragraph_range` tool — batch paragraph read
+**Branch:** `feat/get-paragraph-range`
+**Files:** `extended_document_utils.py`, `extended_document_tools.py`, `main.py`
+**Issue resolved:** 2
+
+New MCP tool that reads a contiguous range of paragraphs in a single call. Returns a list
+of paragraph objects (index, text, style, is_heading) and a count field. Replaces the pattern
+of making many sequential get_paragraph_text_from_document calls to map section structure.
+
 ### 9. `get_section_paragraphs` tool — section content extraction
 **Branch:** `feat/get-section-paragraphs`
 **Files:** `extended_document_utils.py`, `extended_document_tools.py`, `main.py`

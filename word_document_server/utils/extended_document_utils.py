@@ -41,6 +41,51 @@ def get_paragraph_text(doc_path: str, paragraph_index: int) -> Dict[str, Any]:
         return {"error": f"Failed to get paragraph text: {str(e)}"}
 
 
+def get_paragraph_range(doc_path: str, start_index: int, end_index: int) -> Dict[str, Any]:
+    """Get text from a range of paragraphs (start to end index inclusive).
+
+    Args:
+        doc_path: Path to the Word document
+        start_index: First paragraph index (inclusive, 0-based)
+        end_index: Last paragraph index (inclusive, 0-based)
+
+    Returns:
+        Dict with "paragraphs" list (each having index, text, style, is_heading)
+        and "count" field. Or dict with "error" key on failure.
+    """
+    import os
+    if not os.path.exists(doc_path):
+        return {"error": f"Document {doc_path} does not exist"}
+
+    try:
+        doc = Document(doc_path)
+        total = len(doc.paragraphs)
+
+        if start_index < 0:
+            return {"error": f"start_index ({start_index}) must be >= 0"}
+        if end_index >= total:
+            return {"error": f"end_index ({end_index}) exceeds paragraph count ({total})"}
+        if start_index > end_index:
+            return {"error": f"start_index ({start_index}) > end_index ({end_index})"}
+
+        paragraphs = []
+        for i in range(start_index, end_index + 1):
+            para = doc.paragraphs[i]
+            paragraphs.append({
+                "index": i,
+                "text": para.text,
+                "style": para.style.name if para.style else "Normal",
+                "is_heading": para.style.name.startswith("Heading") if para.style else False
+            })
+
+        return {
+            "paragraphs": paragraphs,
+            "count": len(paragraphs)
+        }
+    except Exception as e:
+        return {"error": f"Failed to get paragraph range: {str(e)}"}
+
+
 def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_word: bool = False, include_paragraph_text: bool = False) -> Dict[str, Any]:
     """
     Find all occurrences of specific text in a Word document.
