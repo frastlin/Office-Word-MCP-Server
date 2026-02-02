@@ -4,6 +4,8 @@ Extended document utilities for Word Document Server.
 from typing import Dict, List, Any, Tuple
 from docx import Document
 
+from word_document_server.utils.document_utils import _normalize_text
+
 
 def get_paragraph_text(doc_path: str, paragraph_index: int) -> Dict[str, Any]:
     """
@@ -163,3 +165,103 @@ def find_text(doc_path: str, text_to_find: str, match_case: bool = True, whole_w
         return results
     except Exception as e:
         return {"error": f"Failed to search for text: {str(e)}"}
+
+
+def get_section_paragraphs(doc_path: str, heading_text: str, include_heading: bool = True) -> Dict[str, Any]:
+    """Get all paragraphs under a heading until the next same-or-higher-level heading.
+
+    Uses normalized text matching (NFKC + whitespace collapse) to find the heading.
+    Falls back to substring matching if exact match fails.
+
+    Args:
+        doc_path: Path to the Word document
+        heading_text: Text of the heading to find
+        include_heading: Whether to include the heading paragraph itself (default True)
+
+    Returns:
+        Dict with heading metadata and paragraphs list.
+        Or dict with "error" key on failure.
+    """
+    import os
+    if not os.path.exists(doc_path):
+        return {"error": f"Document {doc_path} does not exist"}
+
+    try:
+        doc = Document(doc_path)
+        normalized_search = _normalize_text(heading_text)
+
+        # Find the heading paragraph — exact normalized match first
+        heading_idx = None
+        for i, para in enumerate(doc.paragraphs):
+            if para.style and para.style.name.startswith("Heading"):
+                normalized_para = _normalize_text(para.text)
+                if normalized_para == normalized_search:
+                    heading_idx = i
+                    break
+
+        # Fallback: substring match on heading paragraphs
+        if heading_idx is None:
+            for i, para in enumerate(doc.paragraphs):
+                if para.style and para.style.name.startswith("Heading"):
+                    if normalized_search in _normalize_text(para.text):
+                        heading_idx = i
+                        break
+
+        if heading_idx is None:
+            return {"error": f"Heading '{heading_text}' not found in document"}
+
+        heading_para = doc.paragraphs[heading_idx]
+        heading_style = heading_para.style.name if heading_para.style else "Heading 1"
+
+        # Extract heading level number
+        try:
+            heading_level = int(heading_style.split(" ")[1])
+        except (ValueError, IndexError):
+            heading_level = 1
+
+        # Walk forward collecting paragraphs until next same-or-higher-level heading
+        next_heading_idx = None
+
+        for i in range(heading_idx + 1, len(doc.paragraphs)):
+            para = doc.paragraphs[i]
+            if para.style and para.style.name.startswith("Heading"):
+                try:
+                    para_level = int(para.style.name.split(" ")[1])
+                except (ValueError, IndexError):
+                    para_level = 1
+                if para_level <= heading_level:
+                    next_heading_idx = i
+                    break
+
+        # Determine content boundaries
+        if next_heading_idx is None:
+            content_end_idx = len(doc.paragraphs) - 1
+        else:
+            content_end_idx = next_heading_idx - 1
+
+        # Build paragraphs list
+        paragraphs = []
+        start = heading_idx if include_heading else heading_idx + 1
+        end = content_end_idx
+
+        for i in range(start, end + 1):
+            para = doc.paragraphs[i]
+            paragraphs.append({
+                "index": i,
+                "text": para.text,
+                "style": para.style.name if para.style else "Normal",
+                "is_heading": para.style.name.startswith("Heading") if para.style else False
+            })
+
+        return {
+            "heading_index": heading_idx,
+            "heading_text": heading_para.text,
+            "heading_style": heading_style,
+            "heading_level": heading_level,
+            "content_start_index": heading_idx + 1 if heading_idx + 1 <= content_end_idx else None,
+            "content_end_index": content_end_idx if content_end_idx > heading_idx else None,
+            "next_heading_index": next_heading_idx,
+            "paragraphs": paragraphs
+        }
+    except Exception as e:
+        return {"error": f"Failed to get section paragraphs: {str(e)}"}
