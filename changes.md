@@ -81,6 +81,15 @@ All new functionality includes pytest-based tests under `tests/`:
 | `tests/test_insert_paragraph_formatting.py` | `copy_style_from_index` parameter |
 | `tests/test_batch_replace.py` | `replace_paragraph_range` tool |
 
+### 8. `get_paragraph_range` tool — batch paragraph read
+**Branch:** `feat/get-paragraph-range`
+**Files:** `extended_document_utils.py`, `extended_document_tools.py`, `main.py`
+**Issue resolved:** 2
+
+New MCP tool that reads a contiguous range of paragraphs in a single call. Returns a list
+of paragraph objects (index, text, style, is_heading) and a count field. Replaces the pattern
+of making many sequential get_paragraph_text_from_document calls to map section structure.
+
 ---
 
 ## Other Changes
