@@ -22,7 +22,9 @@ from word_document_server.tools import (
     protection_tools,
     footnote_tools,
     extended_document_tools,
-    comment_tools
+    comment_tools,
+    track_changes_tools,
+    comment_management_tools,
 )
 from word_document_server.tools.content_tools import replace_paragraph_block_below_header_tool
 from word_document_server.tools.content_tools import replace_block_between_manual_anchors_tool
@@ -750,6 +752,172 @@ def register_tools():
     def get_comments_for_paragraph(filename: str, paragraph_index: int):
         """Extract comments for a specific paragraph in a Word document."""
         return comment_tools.get_comments_for_paragraph(filename, paragraph_index)
+
+    # Track changes tools
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Replace With Track Changes",
+            destructiveHint=True,
+        ),
+    )
+    def replace_with_track_changes(filename: str, find_text: str, replace_text: str,
+                                    author: str = None, occurrence: int = None):
+        """Replace text with tracked changes. Creates a tracked deletion + insertion.
+        occurrence=None replaces all matches. occurrence=0 replaces the first (0-indexed)."""
+        return track_changes_tools.replace_with_track_changes(filename, find_text, replace_text, author, occurrence)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Delete With Track Changes",
+            destructiveHint=True,
+        ),
+    )
+    def delete_with_track_changes(filename: str, text: str,
+                                   author: str = None, occurrence: int = None):
+        """Mark text as deleted with tracked changes.
+        occurrence=None deletes all matches. occurrence=0 deletes the first (0-indexed)."""
+        return track_changes_tools.delete_with_track_changes(filename, text, author, occurrence)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Insert After With Track Changes",
+            destructiveHint=True,
+        ),
+    )
+    def insert_after_with_track_changes(filename: str, anchor_text: str, text_to_insert: str,
+                                         author: str = None, occurrence: int = 0):
+        """Insert text after anchor with tracked changes.
+        occurrence selects which match of anchor_text to use (0-indexed, default 0)."""
+        return track_changes_tools.insert_after_with_track_changes(filename, anchor_text, text_to_insert, author, occurrence)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Insert Before With Track Changes",
+            destructiveHint=True,
+        ),
+    )
+    def insert_before_with_track_changes(filename: str, anchor_text: str, text_to_insert: str,
+                                          author: str = None, occurrence: int = 0):
+        """Insert text before anchor with tracked changes.
+        occurrence selects which match of anchor_text to use (0-indexed, default 0)."""
+        return track_changes_tools.insert_before_with_track_changes(filename, anchor_text, text_to_insert, author, occurrence)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="List Revisions",
+            readOnlyHint=True,
+        ),
+    )
+    def list_revisions(filename: str, author: str = None):
+        """List all tracked changes in a document. Each revision has id, type, author, date, text.
+        Optionally filter by author."""
+        return track_changes_tools.list_revisions(filename, author)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Accept Revision",
+            destructiveHint=True,
+        ),
+    )
+    def accept_revision(filename: str, revision_id: int):
+        """Accept a single tracked change by revision ID."""
+        return track_changes_tools.accept_revision(filename, revision_id)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Reject Revision",
+            destructiveHint=True,
+        ),
+    )
+    def reject_revision(filename: str, revision_id: int):
+        """Reject a single tracked change by revision ID."""
+        return track_changes_tools.reject_revision(filename, revision_id)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Accept All Revisions",
+            destructiveHint=True,
+        ),
+    )
+    def accept_all_revisions(filename: str, author: str = None):
+        """Accept all tracked changes. Optionally filter by author."""
+        return track_changes_tools.accept_all_revisions(filename, author)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Reject All Revisions",
+            destructiveHint=True,
+        ),
+    )
+    def reject_all_revisions(filename: str, author: str = None):
+        """Reject all tracked changes. Optionally filter by author."""
+        return track_changes_tools.reject_all_revisions(filename, author)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Get Visible Text (Track Changes)",
+            readOnlyHint=True,
+        ),
+    )
+    def get_visible_text(filename: str):
+        """Get the visible text of a document with track changes applied.
+        Insertions are included, deletions are excluded."""
+        return track_changes_tools.get_visible_text(filename)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Count Tracked Matches",
+            readOnlyHint=True,
+        ),
+    )
+    def count_tracked_matches(filename: str, text: str):
+        """Count occurrences of text in the visible document content.
+        Uses the track-changes-aware view (insertions included, deletions excluded)."""
+        return track_changes_tools.count_tracked_matches(filename, text)
+
+    # Comment management tools
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Add Comment",
+            destructiveHint=True,
+        ),
+    )
+    def add_comment(filename: str, anchor_text: str, comment_text: str,
+                     author: str = None):
+        """Add a comment anchored to specific text in a document."""
+        return comment_management_tools.add_comment(filename, anchor_text, comment_text, author)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Reply To Comment",
+            destructiveHint=True,
+        ),
+    )
+    def reply_to_comment(filename: str, comment_id: int, reply_text: str,
+                          author: str = None):
+        """Add a reply to an existing comment."""
+        return comment_management_tools.reply_to_comment(filename, comment_id, reply_text, author)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Resolve Comment",
+            destructiveHint=True,
+        ),
+    )
+    def resolve_comment(filename: str, comment_id: int):
+        """Mark a comment as resolved."""
+        return comment_management_tools.resolve_comment(filename, comment_id)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Delete Comment",
+            destructiveHint=True,
+        ),
+    )
+    def delete_comment(filename: str, comment_id: int):
+        """Delete a comment from a document."""
+        return comment_management_tools.delete_comment(filename, comment_id)
+
     # New table column width tools
     @mcp.tool(
         annotations=ToolAnnotations(

@@ -40,3 +40,17 @@ from word_document_server.tools.footnote_tools import (
 from word_document_server.tools.comment_tools import (
     get_all_comments, get_comments_by_author, get_comments_for_paragraph
 )
+
+# Track changes tools
+from word_document_server.tools.track_changes_tools import (
+    replace_with_track_changes, delete_with_track_changes,
+    insert_after_with_track_changes, insert_before_with_track_changes,
+    list_revisions, accept_revision, reject_revision,
+    accept_all_revisions, reject_all_revisions,
+    get_visible_text, count_tracked_matches,
+)
+
+# Comment management tools
+from word_document_server.tools.comment_management_tools import (
+    add_comment, reply_to_comment, resolve_comment, delete_comment,
+)

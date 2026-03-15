@@ -104,12 +104,29 @@ The server features a modular architecture that separates concerns into core fun
 - Add digital signatures to documents
 - Verify document authenticity and integrity
 
+### Track Changes
+
+- Create tracked replacements, insertions, and deletions without Microsoft Word
+- Replace single or all occurrences with tracked changes
+- Insert text before or after anchors with tracked changes
+- List, accept, and reject individual revisions
+- Accept or reject all revisions, optionally filtered by author
+- Get visible text (insertions included, deletions excluded)
+- Count text matches in the track-changes-aware view
+
 ### Comment Extraction
 
 - Extract all comments from a document
 - Filter comments by author
 - Get comments for specific paragraphs
 - Access comment metadata (author, date, text)
+
+### Comment Management
+
+- Add comments anchored to specific text
+- Reply to existing comments
+- Resolve comments
+- Delete comments
 
 ## Installation
 
@@ -323,12 +340,37 @@ set_table_width(filename, table_index, width, width_type="points")
 auto_fit_table_columns(filename, table_index)
 ```
 
+### Track Changes
+
+```python
+replace_with_track_changes(filename, find_text, replace_text, author=None, occurrence=None)
+delete_with_track_changes(filename, text, author=None, occurrence=None)
+insert_after_with_track_changes(filename, anchor_text, text_to_insert, author=None, occurrence=0)
+insert_before_with_track_changes(filename, anchor_text, text_to_insert, author=None, occurrence=0)
+list_revisions(filename, author=None)
+accept_revision(filename, revision_id)
+reject_revision(filename, revision_id)
+accept_all_revisions(filename, author=None)
+reject_all_revisions(filename, author=None)
+get_visible_text(filename)
+count_tracked_matches(filename, text)
+```
+
 ### Comment Extraction
 
 ```python
 get_all_comments(filename)
 get_comments_by_author(filename, author)
 get_comments_for_paragraph(filename, paragraph_index)
+```
+
+### Comment Management
+
+```python
+add_comment(filename, anchor_text, comment_text, author=None)
+reply_to_comment(filename, comment_id, reply_text, author=None)
+resolve_comment(filename, comment_id)
+delete_comment(filename, comment_id)
 ```
 
 ## Troubleshooting
@@ -388,6 +430,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [Model Context Protocol](https://modelcontextprotocol.io/) for the protocol specification
 - [python-docx](https://python-docx.readthedocs.io/) for Word document manipulation
 - [FastMCP](https://github.com/modelcontextprotocol/python-sdk) for the Python MCP implementation
+- [docx-editor](https://pablospe.github.io/docx-editor/) for track changes and comment management
 
 ---
 
