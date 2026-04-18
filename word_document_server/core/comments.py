@@ -1,58 +1,77 @@
 """
 Core comment extraction functionality for Word documents.
 
-This module provides low-level functions to extract and process comments
-from Word documents using the python-docx library.
+This module reads ``word/comments.xml`` directly from the .docx zip rather
+than relying on python-docx's relationship graph. The relationship approach
+was unreliable when external editors (docx-editor) added the comments part
+or when the OPC package contained extra zip entries (e.g. the historical
+docx-editor ``meta.json`` leak), causing ``get_all_comments`` to silently
+return zero even when comments were visible in Word.
 """
 import datetime
-from typing import Dict, List, Optional, Any
+import zipfile
+from typing import Dict, List, Optional, Any, Union
+
 from docx import Document
 from docx.document import Document as DocumentType
 from docx.text.paragraph import Paragraph
+from lxml import etree
 
 
-def extract_all_comments(doc: DocumentType) -> List[Dict[str, Any]]:
+W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+W15_NS = "http://schemas.microsoft.com/office/word/2012/wordml"
+COMMENTS_PART = "word/comments.xml"
+
+
+def extract_all_comments(doc_or_path: Union[DocumentType, str]) -> List[Dict[str, Any]]:
+    """Extract all comments from a Word document.
+
+    Accepts either a filename (preferred — reads comments.xml directly from
+    the zip) or a python-docx ``Document`` object (resolved to a filename
+    via the document part's ``package.filename`` when possible).
     """
-    Extract all comments from a Word document.
-    
-    Args:
-        doc: The Document object to extract comments from
-        
-    Returns:
-        List of dictionaries containing comment information
-    """
-    comments = []
-    
-    # Access the document's comment part if it exists
+    filename = _resolve_filename(doc_or_path)
+    if filename is None:
+        return []
+    return _extract_from_zip(filename)
+
+
+def _resolve_filename(doc_or_path: Union[DocumentType, str, None]) -> Optional[str]:
+    if isinstance(doc_or_path, str):
+        return doc_or_path
+    if doc_or_path is None:
+        return None
+    # python-docx Document — try to recover the underlying file path.
     try:
-        # Get the document part
-        document_part = doc.part
-        
-        # Find comments part through relationships
-        comments_part = None
-        for rel_id, rel in document_part.rels.items():
-            if 'comments' in rel.reltype and 'comments' == rel.reltype.split('/')[-1]:
-                comments_part = rel.target_part
-                break
-        
-        if comments_part:
-            # Extract comments from the comments part using proper xpath syntax
-            comment_elements = comments_part.element.xpath('.//w:comment')
-            
-            for idx, comment_element in enumerate(comment_elements):
-                comment_data = extract_comment_data(comment_element, idx)
-                if comment_data:
-                    comments.append(comment_data)
-        
-        # If no comments found, try alternative approach
-        if not comments:
-            # Fallback: scan paragraphs for comment references
-            comments = extract_comments_from_paragraphs(doc)
-    
-    except Exception as e:
-        # If direct access fails, try alternative approach
-        comments = extract_comments_from_paragraphs(doc)
-    
+        pkg = getattr(doc_or_path.part, "package", None)
+        for attr in ("filename", "_filename", "partname"):
+            value = getattr(pkg, attr, None)
+            if isinstance(value, str):
+                return value
+    except Exception:
+        pass
+    return None
+
+
+def _extract_from_zip(filename: str) -> List[Dict[str, Any]]:
+    try:
+        with zipfile.ZipFile(filename) as z:
+            if COMMENTS_PART not in z.namelist():
+                return []
+            xml_bytes = z.read(COMMENTS_PART)
+    except (zipfile.BadZipFile, FileNotFoundError, KeyError):
+        return []
+
+    try:
+        root = etree.fromstring(xml_bytes)
+    except etree.XMLSyntaxError:
+        return []
+
+    comments: List[Dict[str, Any]] = []
+    for idx, elem in enumerate(root.findall(f"{{{W_NS}}}comment")):
+        comment_data = extract_comment_data(elem, idx)
+        if comment_data:
+            comments.append(comment_data)
     return comments
 
 
@@ -114,8 +133,11 @@ def extract_comment_data(comment_element, index: int) -> Optional[Dict[str, Any]
             except:
                 date = date_str
         
-        # Extract comment text
-        text_elements = comment_element.xpath('.//w:t')
+        # Extract comment text (handle lxml Elements rooted from a parsed
+        # comments.xml as well as python-docx's xpath-aware elements)
+        text_elements = comment_element.xpath(
+            './/w:t', namespaces={'w': W_NS}
+        )
         text = ''.join(elem.text or '' for elem in text_elements)
         
         return {

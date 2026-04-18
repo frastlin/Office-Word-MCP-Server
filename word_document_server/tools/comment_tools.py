@@ -36,19 +36,13 @@ async def get_all_comments(filename: str) -> str:
         }, indent=2)
     
     try:
-        # Load the document
-        doc = Document(filename)
-        
-        # Extract all comments
-        comments = extract_all_comments(doc)
-        
-        # Return results
+        comments = extract_all_comments(filename)
         return json.dumps({
             'success': True,
             'comments': comments,
             'total_comments': len(comments)
         }, indent=2)
-        
+
     except Exception as e:
         return json.dumps({
             'success': False,
@@ -82,13 +76,7 @@ async def get_comments_by_author(filename: str, author: str) -> str:
         }, indent=2)
     
     try:
-        # Load the document
-        doc = Document(filename)
-        
-        # Extract all comments
-        all_comments = extract_all_comments(doc)
-        
-        # Filter by author
+        all_comments = extract_all_comments(filename)
         author_comments = filter_comments_by_author(all_comments, author)
         
         # Return results
@@ -143,8 +131,8 @@ async def get_comments_for_paragraph(filename: str, paragraph_index: int) -> str
             }, indent=2)
         
         # Extract all comments
-        all_comments = extract_all_comments(doc)
-        
+        all_comments = extract_all_comments(filename)
+
         # Filter for the specific paragraph
         from word_document_server.core.comments import get_comments_for_paragraph as core_get_comments_for_paragraph
         para_comments = core_get_comments_for_paragraph(all_comments, paragraph_index)
