@@ -13,7 +13,10 @@ from docx_editor import Document as DocxEditorDocument
 from docx_editor.exceptions import TextNotFoundError, CommentError
 
 from word_document_server.utils.file_utils import ensure_docx_extension, check_file_writeable
-from word_document_server.utils.docx_zip_utils import strip_meta_json
+from word_document_server.utils.docx_zip_utils import (
+    strip_meta_json,
+    strip_orphan_comments_extensible,
+)
 
 
 def _get_author(author: Optional[str]) -> str:
@@ -200,6 +203,9 @@ async def delete_comment(
         result = doc.delete_comment(comment_id)
         if result:
             _save_and_sanitize(doc, filename)
+            # docx-editor's delete_comment skips commentsExtensible.xml; scrub
+            # any leftover <w16cex:commentExtensible> with no live durableId.
+            strip_orphan_comments_extensible(filename)
             return json.dumps({"success": True, "deleted": comment_id})
         else:
             return json.dumps({"success": False, "error": f"Comment {comment_id} not found"})

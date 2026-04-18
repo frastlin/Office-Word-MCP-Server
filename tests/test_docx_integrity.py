@@ -45,3 +45,36 @@ class TestMetaJsonStripped:
         _parse(_run(delete_comment(path, cid)))
         with zipfile.ZipFile(path) as z:
             assert "meta.json" not in z.namelist()
+
+
+# ── Bug 2: delete_comment must clean commentsExtensible.xml ──────────────
+
+class TestCommentsExtensibleOrphans:
+    def test_delete_comment_removes_orphan_extensible(self, make_docx):
+        path = make_docx(paragraphs=["Hello World", "Second paragraph"])
+        # Add two so we have something left after the delete — lets us
+        # detect an orphan by diffing live ids against extensible ids.
+        first = _parse(_run(add_comment(path, "Hello", "c1", author="Tester")))
+        _parse(_run(add_comment(path, "Second", "c2", author="Tester")))
+        _parse(_run(delete_comment(path, first["comment_id"])))
+
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+            ext = (
+                z.read("word/commentsExtensible.xml").decode("utf-8")
+                if "word/commentsExtensible.xml" in names
+                else ""
+            )
+            ids = (
+                z.read("word/commentsIds.xml").decode("utf-8")
+                if "word/commentsIds.xml" in names
+                else ""
+            )
+
+        live = set(re.findall(r'w16cid:durableId="([^"]+)"', ids))
+        extensible = set(re.findall(r'w16cex:durableId="([^"]+)"', ext))
+        orphans = extensible - live
+        assert not orphans, (
+            f"orphan durableId(s) in commentsExtensible.xml with no matching "
+            f"entry in commentsIds.xml: {orphans}"
+        )
