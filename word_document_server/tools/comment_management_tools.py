@@ -13,6 +13,7 @@ from docx_editor import Document as DocxEditorDocument
 from docx_editor.exceptions import TextNotFoundError, CommentError
 
 from word_document_server.utils.file_utils import ensure_docx_extension, check_file_writeable
+from word_document_server.utils.docx_zip_utils import strip_meta_json
 
 
 def _get_author(author: Optional[str]) -> str:
@@ -25,6 +26,16 @@ def _get_author(author: Optional[str]) -> str:
 def _open_tracked_document(filename: str, author: str) -> DocxEditorDocument:
     """Open a document for editing."""
     return DocxEditorDocument.open(filename, author=author, force_recreate=True)
+
+
+def _save_and_sanitize(doc: DocxEditorDocument, filename: str) -> None:
+    """Save via docx-editor, then strip its stray meta.json from the zip.
+
+    docx-editor writes its workspace meta.json inside the unpacked OPC tree
+    and zips it into the .docx, which Word flags as "unreadable content".
+    """
+    doc.save()
+    strip_meta_json(filename)
 
 
 async def add_comment(
@@ -61,7 +72,7 @@ async def add_comment(
     try:
         doc = _open_tracked_document(filename, author)
         comment_id = doc.add_comment(anchor_text, comment_text)
-        doc.save()
+        _save_and_sanitize(doc, filename)
         return json.dumps({"success": True, "comment_id": comment_id, "anchor_text": anchor_text, "author": author})
     except TextNotFoundError:
         return json.dumps({"success": False, "error": f"Anchor text '{anchor_text}' not found in document"})
@@ -106,7 +117,7 @@ async def reply_to_comment(
     try:
         doc = _open_tracked_document(filename, author)
         reply_id = doc.reply_to_comment(comment_id, reply_text)
-        doc.save()
+        _save_and_sanitize(doc, filename)
         return json.dumps({"success": True, "reply_id": reply_id, "parent_comment_id": comment_id, "author": author})
     except CommentError as e:
         return json.dumps({"success": False, "error": str(e)})
@@ -147,7 +158,7 @@ async def resolve_comment(
         doc = _open_tracked_document(filename, _get_author(None))
         result = doc.resolve_comment(comment_id)
         if result:
-            doc.save()
+            _save_and_sanitize(doc, filename)
             return json.dumps({"success": True, "resolved": comment_id})
         else:
             return json.dumps({"success": False, "error": f"Comment {comment_id} not found"})
@@ -188,7 +199,7 @@ async def delete_comment(
         doc = _open_tracked_document(filename, _get_author(None))
         result = doc.delete_comment(comment_id)
         if result:
-            doc.save()
+            _save_and_sanitize(doc, filename)
             return json.dumps({"success": True, "deleted": comment_id})
         else:
             return json.dumps({"success": False, "error": f"Comment {comment_id} not found"})

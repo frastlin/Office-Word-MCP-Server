@@ -12,6 +12,7 @@ from docx_editor import Document as DocxEditorDocument
 from docx_editor.exceptions import TextNotFoundError
 
 from word_document_server.utils.file_utils import ensure_docx_extension, check_file_writeable
+from word_document_server.utils.docx_zip_utils import strip_meta_json
 
 
 def _get_author(author: Optional[str]) -> str:
@@ -24,6 +25,16 @@ def _get_author(author: Optional[str]) -> str:
 def _open_tracked_document(filename: str, author: str) -> DocxEditorDocument:
     """Open a document for tracked changes editing."""
     return DocxEditorDocument.open(filename, author=author, force_recreate=True)
+
+
+def _save_and_sanitize(doc: DocxEditorDocument, filename: str) -> None:
+    """Save via docx-editor, then strip its stray meta.json from the zip.
+
+    docx-editor writes its workspace meta.json inside the unpacked OPC tree
+    and zips it into the .docx, which Word flags as "unreadable content".
+    """
+    doc.save()
+    strip_meta_json(filename)
 
 
 async def replace_with_track_changes(
@@ -76,7 +87,7 @@ async def replace_with_track_changes(
                 doc.replace(find_text, replace_text, occurrence=i)
             replaced = match_count
 
-        doc.save()
+        _save_and_sanitize(doc, filename)
         return json.dumps({"success": True, "replacements": replaced, "author": author})
     except TextNotFoundError:
         return json.dumps({"success": True, "message": f"No matches found for '{find_text}'", "replacements": 0})
@@ -137,7 +148,7 @@ async def delete_with_track_changes(
                 doc.delete(text, occurrence=i)
             deleted = match_count
 
-        doc.save()
+        _save_and_sanitize(doc, filename)
         return json.dumps({"success": True, "deletions": deleted, "author": author})
     except TextNotFoundError:
         return json.dumps({"success": True, "message": f"No matches found for '{text}'", "deletions": 0})
@@ -187,7 +198,7 @@ async def insert_after_with_track_changes(
     try:
         doc = _open_tracked_document(filename, author)
         doc.insert_after(anchor_text, text_to_insert, occurrence=occurrence)
-        doc.save()
+        _save_and_sanitize(doc, filename)
         return json.dumps({"success": True, "inserted": text_to_insert, "after": anchor_text, "author": author})
     except TextNotFoundError:
         return json.dumps({"success": True, "message": f"Anchor text '{anchor_text}' not found", "inserted": False})
@@ -237,7 +248,7 @@ async def insert_before_with_track_changes(
     try:
         doc = _open_tracked_document(filename, author)
         doc.insert_before(anchor_text, text_to_insert, occurrence=occurrence)
-        doc.save()
+        _save_and_sanitize(doc, filename)
         return json.dumps({"success": True, "inserted": text_to_insert, "before": anchor_text, "author": author})
     except TextNotFoundError:
         return json.dumps({"success": True, "message": f"Anchor text '{anchor_text}' not found", "inserted": False})
@@ -321,7 +332,7 @@ async def accept_revision(
         doc = _open_tracked_document(filename, _get_author(None))
         result = doc.accept_revision(revision_id)
         if result:
-            doc.save()
+            _save_and_sanitize(doc, filename)
             return json.dumps({"success": True, "accepted": revision_id})
         else:
             return json.dumps({"success": False, "error": f"Revision {revision_id} not found"})
@@ -362,7 +373,7 @@ async def reject_revision(
         doc = _open_tracked_document(filename, _get_author(None))
         result = doc.reject_revision(revision_id)
         if result:
-            doc.save()
+            _save_and_sanitize(doc, filename)
             return json.dumps({"success": True, "rejected": revision_id})
         else:
             return json.dumps({"success": False, "error": f"Revision {revision_id} not found"})
@@ -402,7 +413,7 @@ async def accept_all_revisions(
     try:
         doc = _open_tracked_document(filename, _get_author(None))
         count = doc.accept_all(author=author)
-        doc.save()
+        _save_and_sanitize(doc, filename)
         return json.dumps({"success": True, "accepted": count, "author_filter": author})
     except Exception as e:
         return json.dumps({"success": False, "error": f"Failed to accept all revisions: {str(e)}"})
@@ -440,7 +451,7 @@ async def reject_all_revisions(
     try:
         doc = _open_tracked_document(filename, _get_author(None))
         count = doc.reject_all(author=author)
-        doc.save()
+        _save_and_sanitize(doc, filename)
         return json.dumps({"success": True, "rejected": count, "author_filter": author})
     except Exception as e:
         return json.dumps({"success": False, "error": f"Failed to reject all revisions: {str(e)}"})
