@@ -272,6 +272,79 @@ def register_tools():
     def add_page_break(filename: str):
         """Add a page break to the document."""
         return content_tools.add_page_break(filename)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Add Hyperlink",
+        ),
+    )
+    def add_hyperlink(filename: str, url: str, text: str = None,
+                      style: str = None, font_name: str = None,
+                      font_size: int = None, bold: bool = None,
+                      italic: bool = None):
+        """Append a paragraph containing a single clickable hyperlink.
+
+        Args:
+            filename: Path to the Word document.
+            url: Destination URL (scheme is added if missing).
+            text: Visible link text (defaults to the URL itself).
+            style: Optional paragraph style name.
+            font_name: Optional font family override.
+            font_size: Optional font size in points.
+            bold: Optional bold override for the link run.
+            italic: Optional italic override for the link run.
+        """
+        return content_tools.add_hyperlink(filename, url, text, style,
+                                           font_name, font_size, bold, italic)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Add Paragraph With Hyperlinks",
+        ),
+    )
+    def add_paragraph_with_hyperlinks(filename: str, segments: list[dict],
+                                      style: str = None):
+        """Append a paragraph built from a mix of plain and hyperlink segments.
+
+        Args:
+            filename: Path to the Word document.
+            segments: Ordered list of segment objects. Each segment has a
+                ``text`` field; segments with a non-empty ``url`` become
+                clickable hyperlinks. Optional per-segment fields: ``bold``,
+                ``italic``, ``font_name``, ``font_size``, ``color``.
+            style: Optional paragraph style name.
+        """
+        return content_tools.add_paragraph_with_hyperlinks(filename, segments, style)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Convert Text To Hyperlink",
+            destructiveHint=True,
+        ),
+    )
+    def convert_text_to_hyperlink(filename: str, target_text: str, url: str,
+                                  occurrence: int = 1):
+        """Turn an existing text span in the document into a real hyperlink.
+
+        Args:
+            filename: Path to the Word document.
+            target_text: Text span to convert. Must appear intact in a
+                paragraph's text.
+            url: Destination URL.
+            occurrence: 1-based occurrence to convert (default 1). Pass 0
+                to convert every occurrence.
+        """
+        return content_tools.convert_text_to_hyperlink(filename, target_text, url, occurrence)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Convert Markdown Links",
+            destructiveHint=True,
+        ),
+    )
+    def convert_markdown_links(filename: str):
+        """Convert every ``[text](url)`` markdown link in the document into a real hyperlink."""
+        return content_tools.convert_markdown_links(filename)
     
     @mcp.tool(
         annotations=ToolAnnotations(

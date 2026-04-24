@@ -5,13 +5,16 @@ These tools add various types of content to Word documents,
 including headings, paragraphs, tables, images, and page breaks.
 """
 import os
+import re
 from typing import List, Optional, Dict, Any
 from docx import Document
+from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
 from word_document_server.utils.file_utils import check_file_writeable, ensure_docx_extension
 from word_document_server.utils.document_utils import find_and_replace_text, insert_header_near_text, insert_numbered_list_near_text, insert_line_or_paragraph_near_text, replace_paragraph_block_below_header, replace_block_between_manual_anchors, replace_paragraph_text, replace_paragraph_range, delete_paragraph_range, diagnose_outline_prefix_miss
 from word_document_server.core.styles import ensure_heading_style, ensure_table_style
+from word_document_server.core.hyperlinks import add_hyperlink_run, wrap_run_as_hyperlink
 
 
 async def add_heading(filename: str, text: str, level: int = 1,
@@ -276,6 +279,307 @@ async def add_picture(filename: str, image_path: str, width: Optional[float] = N
         error_type = type(outer_error).__name__
         error_msg = str(outer_error)
         return f"Document processing error: {error_type} - {error_msg or 'No error details available'}"
+
+
+_MD_LINK_PATTERN = re.compile(r'\[([^\]]+)\]\(([^)\s]+)\)')
+
+
+async def add_hyperlink(filename: str, url: str, text: Optional[str] = None,
+                        style: Optional[str] = None,
+                        font_name: Optional[str] = None, font_size: Optional[int] = None,
+                        bold: Optional[bool] = None, italic: Optional[bool] = None) -> str:
+    """Append a new paragraph containing a single clickable hyperlink.
+
+    Args:
+        filename: Path to the Word document.
+        url: Destination URL. Scheme is added if missing.
+        text: Visible link text. Defaults to the URL.
+        style: Paragraph style name (optional). The link run always uses the
+            "Hyperlink" character style when the document has it.
+        font_name/font_size/bold/italic: Optional run-level overrides.
+    """
+    filename = ensure_docx_extension(filename)
+
+    if not url or not isinstance(url, str):
+        return "Invalid parameter: url must be a non-empty string"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+        paragraph = doc.add_paragraph()
+        if style:
+            try:
+                paragraph.style = style
+            except KeyError:
+                paragraph.style = doc.styles['Normal']
+
+        add_hyperlink_run(
+            paragraph, url, text or url,
+            bold=bold, italic=italic,
+            font_name=font_name, font_size=font_size,
+        )
+
+        doc.save(filename)
+        return f"Hyperlink added to {filename}"
+    except Exception as e:
+        return f"Failed to add hyperlink: {str(e)}"
+
+
+async def add_paragraph_with_hyperlinks(filename: str,
+                                        segments: List[Dict[str, Any]],
+                                        style: Optional[str] = None) -> str:
+    """Append a paragraph composed of mixed plain and hyperlink segments.
+
+    Args:
+        filename: Path to the Word document.
+        segments: Ordered list of segment dicts. Each segment must include
+            ``text``. Segments with a non-empty ``url`` become hyperlinks;
+            others become plain runs. Optional per-segment keys:
+            ``bold``, ``italic``, ``font_name``, ``font_size``, ``color``.
+        style: Paragraph style name (optional).
+    """
+    filename = ensure_docx_extension(filename)
+
+    if not isinstance(segments, list) or not segments:
+        return "Invalid parameter: segments must be a non-empty list"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+        paragraph = doc.add_paragraph()
+        if style:
+            try:
+                paragraph.style = style
+            except KeyError:
+                paragraph.style = doc.styles['Normal']
+
+        link_count = 0
+        for seg in segments:
+            if not isinstance(seg, dict):
+                return "Invalid parameter: each segment must be an object"
+            text = seg.get("text", "")
+            if text is None:
+                text = ""
+            url = seg.get("url")
+            if url:
+                add_hyperlink_run(
+                    paragraph, url, text or url,
+                    bold=seg.get("bold"),
+                    italic=seg.get("italic"),
+                    font_name=seg.get("font_name"),
+                    font_size=seg.get("font_size"),
+                )
+                link_count += 1
+            else:
+                run = paragraph.add_run(text)
+                if seg.get("bold") is not None:
+                    run.bold = seg["bold"]
+                if seg.get("italic") is not None:
+                    run.italic = seg["italic"]
+                if seg.get("font_name"):
+                    run.font.name = seg["font_name"]
+                if seg.get("font_size"):
+                    run.font.size = Pt(seg["font_size"])
+                if seg.get("color"):
+                    run.font.color.rgb = RGBColor.from_string(seg["color"].lstrip("#"))
+
+        doc.save(filename)
+        return f"Paragraph with {link_count} hyperlink(s) added to {filename}"
+    except Exception as e:
+        return f"Failed to add paragraph with hyperlinks: {str(e)}"
+
+
+def _iter_all_paragraphs(doc):
+    for p in doc.paragraphs:
+        yield p
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    yield p
+
+
+def _convert_markdown_links_in_paragraph(paragraph) -> int:
+    """Rewrite any `[text](url)` occurrences in paragraph.text as real hyperlinks.
+
+    Collapses the paragraph into a single concatenated string, then rebuilds
+    the paragraph's run/hyperlink children in order. Existing non-link run
+    formatting is lost for segments that get rewritten — acceptable for a
+    v1 conversion tool. Paragraphs without any markdown link are untouched.
+    """
+    text = paragraph.text
+    if not _MD_LINK_PATTERN.search(text):
+        return 0
+
+    segments = []
+    last_end = 0
+    for m in _MD_LINK_PATTERN.finditer(text):
+        if m.start() > last_end:
+            segments.append(("text", text[last_end:m.start()]))
+        segments.append(("link", m.group(1), m.group(2)))
+        last_end = m.end()
+    if last_end < len(text):
+        segments.append(("text", text[last_end:]))
+
+    p_elem = paragraph._p
+    for child in list(p_elem):
+        tag = child.tag
+        if tag == qn("w:r") or tag == qn("w:hyperlink"):
+            p_elem.remove(child)
+
+    link_count = 0
+    for seg in segments:
+        if seg[0] == "text":
+            if seg[1]:
+                paragraph.add_run(seg[1])
+        else:
+            _, link_text, url = seg
+            add_hyperlink_run(paragraph, url, link_text)
+            link_count += 1
+    return link_count
+
+
+async def convert_markdown_links(filename: str) -> str:
+    """Convert every `[text](url)` in the document into a real hyperlink.
+
+    Scans body paragraphs and table-cell paragraphs. Returns a summary of
+    how many links were converted.
+    """
+    filename = ensure_docx_extension(filename)
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first."
+
+    try:
+        doc = Document(filename)
+        total = 0
+        for para in _iter_all_paragraphs(doc):
+            if para.style and para.style.name.startswith("TOC"):
+                continue
+            total += _convert_markdown_links_in_paragraph(para)
+
+        if total == 0:
+            return f"No markdown links found in {filename}"
+        doc.save(filename)
+        return f"Converted {total} markdown link(s) to hyperlinks in {filename}"
+    except Exception as e:
+        return f"Failed to convert markdown links: {str(e)}"
+
+
+async def convert_text_to_hyperlink(filename: str, target_text: str, url: str,
+                                    occurrence: int = 1) -> str:
+    """Turn an existing text span in the document into a hyperlink.
+
+    For v1 simplicity, operates on paragraphs where ``target_text`` appears
+    intact in ``paragraph.text``. If the span is split across multiple
+    runs, the paragraph is first flattened to a single run. Surrounding
+    text is preserved; formatting on the target span is replaced by the
+    Hyperlink style (or blue/underline fallback).
+
+    Args:
+        filename: Path to the Word document.
+        target_text: Text span to convert.
+        url: Target URL.
+        occurrence: 1-based occurrence to replace (default 1). Use 0 to
+            convert every occurrence.
+    """
+    filename = ensure_docx_extension(filename)
+
+    if not target_text:
+        return "Invalid parameter: target_text must be non-empty"
+    if not url:
+        return "Invalid parameter: url must be non-empty"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first."
+
+    try:
+        doc = Document(filename)
+        remaining = None if occurrence == 0 else max(1, int(occurrence))
+        seen = 0
+        replaced = 0
+
+        for para in _iter_all_paragraphs(doc):
+            if para.style and para.style.name.startswith("TOC"):
+                continue
+            text = para.text
+            if target_text not in text:
+                continue
+
+            # Count and decide which hits to replace in this paragraph.
+            indices = []
+            start = 0
+            while True:
+                idx = text.find(target_text, start)
+                if idx < 0:
+                    break
+                seen += 1
+                if remaining is None or seen == (occurrence if occurrence > 0 else seen):
+                    indices.append(idx)
+                    if remaining is not None:
+                        break
+                start = idx + len(target_text)
+
+            if not indices:
+                continue
+
+            # Flatten paragraph into before/target/after segments in order.
+            # Build by scanning text positions; only the first matching index
+            # per iteration is handled (re-scan after each replacement).
+            p_elem = para._p
+            # Capture plain text split into chunks around matches.
+            chunks = []
+            cursor = 0
+            for idx in indices:
+                if idx > cursor:
+                    chunks.append(("text", text[cursor:idx]))
+                chunks.append(("link", target_text))
+                cursor = idx + len(target_text)
+            if cursor < len(text):
+                chunks.append(("text", text[cursor:]))
+
+            for child in list(p_elem):
+                tag = child.tag
+                if tag == qn("w:r") or tag == qn("w:hyperlink"):
+                    p_elem.remove(child)
+
+            for kind, chunk_text in chunks:
+                if kind == "text":
+                    if chunk_text:
+                        para.add_run(chunk_text)
+                else:
+                    add_hyperlink_run(para, url, chunk_text)
+                    replaced += 1
+
+            if remaining is not None and replaced >= remaining:
+                break
+
+        if replaced == 0:
+            return f"Target text not found in {filename}"
+        doc.save(filename)
+        return f"Converted {replaced} occurrence(s) of target text to hyperlink in {filename}"
+    except Exception as e:
+        return f"Failed to convert text to hyperlink: {str(e)}"
 
 
 async def add_page_break(filename: str) -> str:
